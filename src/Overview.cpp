@@ -1,9 +1,17 @@
 #include "Overview.hpp"
 #include "Globals.hpp"
+#include <cstdlib>
 #include <hyprland/src/config/shared/animation/AnimationTree.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
 #include <hyprland/src/state/WorkspaceState.hpp>
+
+// tell quickshell that the overview opened / closed (fire and forget)
+static void notifyQuickshell(bool open) {
+  std::system(
+      open ? "qs -c ~/.config/bar/horizontaal ipc call overview open &"
+           : "qs -c ~/.config/bar/horizontaal ipc call overview close &");
+}
 
 CHyprspaceWidget::CHyprspaceWidget(uint64_t inOwnerID) {
   ownerID = inOwnerID;
@@ -131,7 +139,10 @@ void CHyprspaceWidget::show() {
     }
   }
 
+  const bool wasActive = active;
   active = true;
+  if (!wasActive)
+    notifyQuickshell(true);
 
   // panel offset should be handled by swipe event when swiping
   if (!swiping) {
@@ -188,7 +199,10 @@ void CHyprspaceWidget::hide() {
   }
   prevFullscreen.clear();
 
+  const bool wasActive = active;
   active = false;
+  if (wasActive)
+    notifyQuickshell(false);
 
   // panel offset should be handled by swipe event when swiping
   if (!swiping) {

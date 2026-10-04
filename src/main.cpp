@@ -147,6 +147,31 @@ void onWorkspaceChange(PHLWORKSPACE pWorkspace) {
 }
 
 // event hook for click and drag interaction
+// void onMouseButton(const IPointer::SButtonEvent &event, SCallbackInfo &info)
+// {
+//   const SP<IPointer> pointer = g_pSeatManager->m_mouse.lock();
+//   if (!pointer)
+//     return;
+//
+//   if (event.button != BTN_LEFT)
+//     return;
+//
+//   const auto pressed = event.state == WL_POINTER_BUTTON_STATE_PRESSED;
+//   const auto pMonitor = State::monitorState()
+//                             ->query()
+//                             .vec(g_pInputManager->getMouseCoordsInternal())
+//                             .run();
+//   if (pMonitor) {
+//     const auto widget = getWidgetForMonitor(pMonitor);
+//     if (widget) {
+//       if (widget->isActive()) {
+//         info.cancelled = !widget->buttonEvent(
+//             pressed, g_pInputManager->getMouseCoordsInternal());
+//       }
+//     }
+//   }
+// }
+
 void onMouseButton(const IPointer::SButtonEvent &event, SCallbackInfo &info) {
   const SP<IPointer> pointer = g_pSeatManager->m_mouse.lock();
   if (!pointer)
@@ -155,17 +180,36 @@ void onMouseButton(const IPointer::SButtonEvent &event, SCallbackInfo &info) {
   if (event.button != BTN_LEFT)
     return;
 
+  const auto mouseCoords = g_pInputManager->getMouseCoordsInternal();
+
+  // Zoek in de monitors van Hyprland naar de Quickshell layer surface onder de
+  // muis
+  for (const auto &pMon : State::monitorState()->monitors()) {
+    if (!pMon)
+      continue;
+
+    for (const auto &layerVec : pMon->m_layerSurfaceLayers) {
+      for (const auto &pLayer : layerVec) {
+        if (!pLayer)
+          continue;
+
+        if (pLayer->m_namespace == "quickshell") {
+          if (pLayer->m_geometry.containsPoint(mouseCoords)) {
+            // Klik valt binnen Quickshell: negeer overview-exit
+            return;
+          }
+        }
+      }
+    }
+  }
+
   const auto pressed = event.state == WL_POINTER_BUTTON_STATE_PRESSED;
-  const auto pMonitor = State::monitorState()
-                            ->query()
-                            .vec(g_pInputManager->getMouseCoordsInternal())
-                            .run();
+  const auto pMonitor = State::monitorState()->query().vec(mouseCoords).run();
   if (pMonitor) {
     const auto widget = getWidgetForMonitor(pMonitor);
     if (widget) {
       if (widget->isActive()) {
-        info.cancelled = !widget->buttonEvent(
-            pressed, g_pInputManager->getMouseCoordsInternal());
+        info.cancelled = !widget->buttonEvent(pressed, mouseCoords);
       }
     }
   }
