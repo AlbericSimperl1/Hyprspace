@@ -396,6 +396,32 @@ SDispatchResult Dispatchers::dispatchCloseOverview(std::string arg) {
   return SDispatchResult{};
 }
 
+// overview:panel [toggle|show|hide] [all]
+SDispatchResult Dispatchers::dispatchTogglePanel(std::string arg) {
+  const auto apply = [&](const std::shared_ptr<CHyprspaceWidget> &w) {
+    if (!w)
+      return;
+    if (arg.contains("show"))
+      w->setPanelVisible(true);
+    else if (arg.contains("hide"))
+      w->setPanelVisible(false);
+    else
+      w->setPanelVisible(!w->isPanelVisible());
+  };
+
+  if (arg.contains("all")) {
+    for (auto &widget : g_overviewWidgets)
+      apply(widget);
+  } else {
+    auto currentMonitor = State::monitorState()
+                              ->query()
+                              .vec(g_pInputManager->getMouseCoordsInternal())
+                              .run();
+    apply(getWidgetForMonitor(currentMonitor));
+  }
+  return SDispatchResult{};
+}
+
 void *findFunctionBySymbol(HANDLE inHandle, const std::string func,
                            const std::string sym) {
   // should return all functions
@@ -474,6 +500,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
   HyprlandAPI::addConfigValueV2(pHandle, config.stageGap);
   HyprlandAPI::addConfigValueV2(pHandle, config.stageBlur);
   HyprlandAPI::addConfigValueV2(pHandle, config.stageRounding);
+  HyprlandAPI::addConfigValueV2(pHandle, config.panelInStage);
+  HyprlandAPI::addConfigValueV2(pHandle, config.showPanel);
 
   HyprlandAPI::addConfigValueV2(pHandle, config.overrideGaps);
   HyprlandAPI::addConfigValueV2(pHandle, config.gapsIn);
@@ -511,6 +539,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
                                Dispatchers::dispatchOpenOverview);
   HyprlandAPI::addDispatcherV2(pHandle, "overview:close",
                                Dispatchers::dispatchCloseOverview);
+  HyprlandAPI::addDispatcherV2(pHandle, "overview:panel",
+                               Dispatchers::dispatchTogglePanel);
 
   registerLuaBindings(pHandle);
 

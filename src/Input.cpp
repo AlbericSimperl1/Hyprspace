@@ -22,6 +22,10 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
                .count() < 200)
     couldExit = true;
 
+  // the strip the thumbnails float in (stage mode): clicks on its empty parts
+  // must not reach the stage underneath
+  const bool onStrip = stripValid && stripBoxGlobal.containsPoint(coords);
+
   int targetWorkspaceID = SPECIAL_WORKSPACE_START - 1;
 
   // find which workspace the mouse hovers over
@@ -50,7 +54,7 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
     if (g_layoutManager->dragController()->target())
       g_layoutManager->endDragTarget();
 
-    if (pressed) {
+    if (pressed && !onStrip) {
       // in stage mode the workspace is drawn scaled: map the cursor back to
       // real window coordinates
       Vector2D pickCoords = coords;
@@ -108,7 +112,7 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
   // GNOME-style: click a window on the stage to focus it and leave the
   // overview, click empty stage to leave
   else if (stageShown && !pressed && couldExit && targetWorkspace == nullptr &&
-           stageRatio > 0 && stageBoxGlobal.containsPoint(coords)) {
+           !onStrip && stageRatio > 0 && stageBoxGlobal.containsPoint(coords)) {
     const Vector2D realCoords =
         getOwner()->m_position + (coords - stageBoxGlobal.pos()) / stageRatio;
     const auto PWINDOW = Desktop::viewState()->hitTest().windowAt(
@@ -121,7 +125,7 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
   }
   // click elsewhere to exit overview
   else if (config.exitOnClick->value() && targetWorkspace == nullptr &&
-           active && couldExit && !pressed)
+           !onStrip && active && couldExit && !pressed)
     hide();
 
   return Return;

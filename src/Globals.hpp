@@ -90,6 +90,8 @@ struct SConfig {
   SP<Config::Values::CIntValue> stageGap;
   SP<Config::Values::CIntValue> stageBlur;
   SP<Config::Values::CIntValue> stageRounding;
+  SP<Config::Values::CIntValue> panelInStage;
+  SP<Config::Values::CIntValue> showPanel;
 
   SP<Config::Values::CIntValue> overrideGaps;
   SP<Config::Values::CIntValue> gapsIn;
@@ -189,6 +191,13 @@ inline SConfig config = {
     .stageRounding = makeShared<Config::Values::CIntValue>(
         "plugin:overview:stageRounding", "description",
         0), // corner radius (px) of the stage card, 0 = square
+    .panelInStage = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:panelInStage", "description",
+        1), // 1: workspace thumbnails float on the stage (no separate panel,
+            // no space reserved for it)
+    .showPanel = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:showPanel", "description",
+        1), // initial panel visibility (toggle at runtime with overview:panel)
 
     .overrideGaps = makeShared<Config::Values::CIntValue>(
         "plugin:overview:overrideGaps", "description", 1),
@@ -273,6 +282,7 @@ namespace Dispatchers {
 SDispatchResult dispatchToggleOverview(std::string arg);
 SDispatchResult dispatchOpenOverview(std::string arg);
 SDispatchResult dispatchCloseOverview(std::string arg);
+SDispatchResult dispatchTogglePanel(std::string arg);
 } // namespace Dispatchers
 
 extern int numWorkspaces;

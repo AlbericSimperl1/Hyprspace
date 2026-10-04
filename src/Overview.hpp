@@ -42,6 +42,15 @@ class CHyprspaceWidget {
 
   PHLANIMVAR<float> workspaceScrollOffset;
 
+  // panel toggle: 0 = panel shown, 1 = panel hidden (animated)
+  PHLANIMVAR<float> panelHide;
+  bool panelVisible = true;
+
+  // bounding box of the workspace strip when it floats on the stage (global
+  // logical coordinates), set in draw(), used for input mapping
+  CBox stripBoxGlobal = {0, 0, 0, 0};
+  bool stripValid = false;
+
   // GNOME-style stage (real workspace rendered scaled), set in draw(), used for
   // input mapping
   CBox stageBoxGlobal = {0, 0, 0, 0};
@@ -65,6 +74,10 @@ public:
   void hide();
 
   void updateConfig();
+
+  // show / hide the workspace panel while the overview is open
+  void setPanelVisible(bool visible);
+  bool isPanelVisible();
 
   // should be called active or not
   void draw();

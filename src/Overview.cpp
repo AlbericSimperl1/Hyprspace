@@ -23,8 +23,12 @@ CHyprspaceWidget::CHyprspaceWidget(uint64_t inOwnerID) {
   Animation::mgr()->createAnimation(0.F, workspaceScrollOffset,
                                     curAnimationConfig.pValues.lock(),
                                     AVARDAMAGE_ENTIRE);
+  Animation::mgr()->createAnimation(
+      0.F, panelHide, curAnimationConfig.pValues.lock(), AVARDAMAGE_ENTIRE);
   curYOffset->setValueAndWarp(config.panelHeight->value());
   workspaceScrollOffset->setValueAndWarp(0);
+  panelVisible = config.showPanel->value() != 0;
+  panelHide->setValueAndWarp(panelVisible ? 0.F : 1.F);
 }
 
 // TODO: implement deconstructor and delete widget on monitor unplug
@@ -44,7 +48,11 @@ CBox CHyprspaceWidget::panelBox() {
   const double thickness =
       (config.panelHeight->value() + config.reservedArea->value()) *
       owner->m_scale;
-  const double offset = curYOffset->value();
+  // slide out of view when closing and when the panel is toggled off
+  const double offset = std::min<double>(
+      curYOffset->value() +
+          std::clamp<double>(panelHide->value(), 0.0, 1.0) * thickness,
+      thickness);
   const Vector2D size = owner->m_transformedSize;
 
   if (isVertical()) {
@@ -62,6 +70,14 @@ CBox CHyprspaceWidget::panelHitBox() {
   const auto owner = getOwner();
   if (!owner)
     return CBox{0, 0, 0, 0};
+
+  // panel toggled off: nothing to hit
+  if (panelHide->value() > 0.99)
+    return CBox{-1e6, -1e6, 0, 0};
+
+  // thumbnails floating on the stage: hit box is the strip they live in
+  if (stripValid)
+    return stripBoxGlobal;
 
   const double s = owner->m_scale;
   const CBox b = panelBox();
@@ -201,8 +217,28 @@ void CHyprspaceWidget::updateConfig() {
   Animation::mgr()->createAnimation(0.F, workspaceScrollOffset,
                                     curAnimationConfig.pValues.lock(),
                                     AVARDAMAGE_ENTIRE);
+  Animation::mgr()->createAnimation(
+      0.F, panelHide, curAnimationConfig.pValues.lock(), AVARDAMAGE_ENTIRE);
   curYOffset->setValueAndWarp(config.panelHeight->value());
   workspaceScrollOffset->setValueAndWarp(0);
+  panelVisible = config.showPanel->value() != 0;
+  panelHide->setValueAndWarp(panelVisible ? 0.F : 1.F);
 }
 
 bool CHyprspaceWidget::isActive() { return active; }
+
+void CHyprspaceWidget::setPanelVisible(bool visible) {
+  panelVisible = visible;
+  *panelHide = visible ? 0.F : 1.F;
+
+  // legacy (non-stage) mode reserves screen space for the panel
+  if (active)
+    updateLayout();
+
+  if (const auto owner = getOwner()) {
+    g_pHyprRenderer->damageMonitor(owner);
+    owner->scheduleFrame();
+  }
+}
+
+bool CHyprspaceWidget::isPanelVisible() { return panelVisible; }

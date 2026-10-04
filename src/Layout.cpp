@@ -42,7 +42,8 @@ void CHyprspaceWidget::updateLayout() {
     return;
 
   const auto currentHeight =
-      config.panelHeight->value() + config.reservedArea->value();
+      panelVisible ? config.panelHeight->value() + config.reservedArea->value()
+                   : 0;
   const auto pMonitor = getOwner();
   if (!pMonitor)
     return;
