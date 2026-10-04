@@ -217,6 +217,7 @@ void renderLayerStub(PHLLS pLayer, PHLMONITOR pMonitor, CBox rectOverride,
 void CHyprspaceWidget::draw() {
 
   workspaceBoxes.clear();
+  stageShown = false;
 
   if (!active && !curYOffset->isBeingAnimated())
     return;
@@ -238,8 +239,10 @@ void CHyprspaceWidget::draw() {
   const bool vertical = isVertical();
   const bool onBottom = config.onBottom->value();
   const bool onRight = config.onRight->value();
+  const bool stageMode = config.scaleWorkspace->value() != 0;
   const double scale = owner->m_scale;
   const double marginPx = config.workspaceMargin->value() * scale;
+  const Vector2D monSize = owner->m_transformedSize;
 
   int bottomInvert = 1;
   if (onBottom)
@@ -249,6 +252,137 @@ void CHyprspaceWidget::draw() {
   CBox widgetBox = panelBox();
 
   g_pHyprRenderer->m_renderData.clipBox = monitorClip;
+
+  // render all layer surfaces of one level, scaled by ratio relative to origin
+  const auto drawLayers = [&](size_t level, const CBox &origin, double ratio,
+                              const CBox &clip) {
+    for (auto &ls : owner->m_layerSurfaceLayers[level]) {
+      CBox layerBox = {
+          origin.pos() +
+              (ls->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT) -
+               owner->m_position) *
+                  ratio,
+          ls->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT) * ratio};
+      renderLayerStub(ls.lock(), owner, layerBox, clip, time);
+    }
+  };
+
+  // render all windows of a workspace into box, scaled by ratio (aspect-fit is
+  // applied in renderWindowStub)
+  const auto drawWorkspaceWindows = [&](const PHLWORKSPACE &ws, const CBox &box,
+                                        double ratio) {
+    if (!ws)
+      return;
+
+    const auto drawWindow = [&](const auto &w) {
+      const auto wPos =
+          w->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+      const auto wSize = w->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
+      double wX = box.x + ((wPos.x - owner->m_position.x) * ratio * scale);
+      double wY = box.y + ((wPos.y - owner->m_position.y) * ratio * scale);
+      double wW = wSize.x * ratio * scale;
+      double wH = wSize.y * ratio * scale;
+      if (!(wW > 0 && wH > 0))
+        return;
+      CBox curWindowBox = {wX, wY, wW, wH};
+      renderWindowStub(w, owner, owner->m_activeWorkspace, curWindowBox, box,
+                       time);
+    };
+
+    // tiled windows
+    for (auto &w : Desktop::windowState()->windows()) {
+      if (!w)
+        continue;
+      if (w->m_workspace == ws && !w->m_isFloating)
+        drawWindow(w);
+    }
+    // floating windows
+    for (auto &w : Desktop::windowState()->windows()) {
+      if (!w)
+        continue;
+      if (w->m_workspace == ws && w->m_isFloating &&
+          ws->getLastFocusedWindow() != w)
+        drawWindow(w);
+    }
+    // last focused floating window on top
+    if (ws->getLastFocusedWindow())
+      if (ws->getLastFocusedWindow()->m_isFloating)
+        drawWindow(ws->getLastFocusedWindow());
+  };
+
+  // GNOME-style stage: the real workspace is rendered uniformly scaled
+  // (aspect-fit) into the area that is not covered by the panel. Nothing is
+  // re-tiled, so windows keep their real layout.
+  if (stageMode) {
+    const double thickness =
+        (config.panelHeight->value() + config.reservedArea->value()) * scale;
+
+    CBox avail = {0, 0, monSize.x, monSize.y};
+    if (vertical) {
+      if (!onRight)
+        avail.x += thickness;
+      avail.w -= thickness;
+    } else {
+      if (!onBottom)
+        avail.y += thickness;
+      avail.h -= thickness;
+    }
+
+    const double m = config.stageMargin->value() * scale;
+    avail = {avail.x + m, avail.y + m, std::max(avail.w - 2 * m, 1.0),
+             std::max(avail.h - 2 * m, 1.0)};
+
+    const double s = std::min(avail.w / monSize.x, avail.h / monSize.y);
+    const CBox target = {avail.x + (avail.w - monSize.x * s) / 2.,
+                         avail.y + (avail.h - monSize.y * s) / 2.,
+                         monSize.x * s, monSize.y * s};
+
+    // 0 = panel hidden (stage == full monitor), 1 = panel fully shown (stage ==
+    // target)
+    const double p =
+        thickness > 0
+            ? std::clamp(1.0 - (double)curYOffset->value() / thickness, 0.0,
+                         1.0)
+            : 1.0;
+    const auto lerp = [&](double a, double b) { return a + (b - a) * p; };
+    const CBox stage = {lerp(0, target.x), lerp(0, target.y),
+                        lerp(monSize.x, target.w), lerp(monSize.y, target.h)};
+    const double ratio = stage.w / monSize.x;
+
+    // opaque base so the real (unscaled) windows underneath are fully hidden
+    renderRect(monitorClip, CHyprColor(0, 0, 0, 1));
+
+    // wallpaper stays full size
+    if (!config.hideBackgroundLayers->value()) {
+      drawLayers(0, monitorClip, 1.0, monitorClip);
+      drawLayers(1, monitorClip, 1.0, monitorClip);
+    }
+
+    CHyprColor dim = CHyprColor(config.stageDim->value());
+    dim.a *= p;
+    if (dim.a > 0)
+      renderRect(monitorClip, dim);
+
+    drawWorkspaceWindows(owner->m_activeWorkspace, stage, ratio);
+
+    // real top/overlay layers are covered by the stage, so redraw them when
+    // they are not hidden
+    if (!config.hideRealLayers->value()) {
+      if (!config.hideTopLayers->value())
+        drawLayers(2, monitorClip, 1.0, monitorClip);
+      if (!config.hideOverlayLayers->value())
+        drawLayers(3, monitorClip, 1.0, monitorClip);
+    }
+
+    // for input mapping (global logical coordinates)
+    stageBoxGlobal = CBox{owner->m_position.x + stage.x / scale,
+                          owner->m_position.y + stage.y / scale,
+                          stage.w / scale, stage.h / scale};
+    stageRatio = ratio;
+    stageShown = active;
+
+    g_pHyprRenderer->m_renderData.clipBox = monitorClip;
+  }
 
   if (!config.disableBlur->value()) {
     renderRectWithBlur(widgetBox, config.panelBaseColor->value());
@@ -446,47 +580,16 @@ void CHyprspaceWidget::draw() {
       }
     }
 
-    // render all layer surfaces of one layer level into the current tile
-    const auto drawLayerSet = [&](size_t level) {
-      for (auto &ls : owner->m_layerSurfaceLayers[level]) {
-        CBox layerBox = {
-            curWorkspaceBox.pos() +
-                (ls->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT) -
-                 owner->m_position) *
-                    monitorSizeScaleFactor,
-            ls->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT) *
-                monitorSizeScaleFactor};
-        renderLayerStub(ls.lock(), owner, layerBox, curWorkspaceBox, time);
-      }
-    };
-
-    // render one window into the current tile (aspect-fit is applied in
-    // renderWindowStub)
-    const auto drawWindow = [&](const auto &w) {
-      const auto wPos =
-          w->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
-      const auto wSize = w->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
-      double wX = curWorkspaceRectOffsetX + ((wPos.x - owner->m_position.x) *
-                                             monitorSizeScaleFactor * scale);
-      double wY = curWorkspaceRectOffsetY + ((wPos.y - owner->m_position.y) *
-                                             monitorSizeScaleFactor * scale);
-      double wW = wSize.x * monitorSizeScaleFactor * scale;
-      double wH = wSize.y * monitorSizeScaleFactor * scale;
-      if (!(wW > 0 && wH > 0))
-        return;
-      CBox curWindowBox = {wX, wY, wW, wH};
-      renderWindowStub(w, owner, owner->m_activeWorkspace, curWindowBox,
-                       curWorkspaceBox, time);
-    };
-
     // background and bottom layers
     if (!config.hideBackgroundLayers->value()) {
-      drawLayerSet(0);
-      drawLayerSet(1);
+      drawLayers(0, curWorkspaceBox, monitorSizeScaleFactor, curWorkspaceBox);
+      drawLayers(1, curWorkspaceBox, monitorSizeScaleFactor, curWorkspaceBox);
     }
 
     // the mini panel to cover the awkward empty space reserved by the panel
-    if (owner->m_activeWorkspace == ws && config.affectStrut->value()) {
+    // (only without stage mode)
+    if (owner->m_activeWorkspace == ws && config.affectStrut->value() &&
+        !stageMode) {
       CBox miniPanelBox = {curWorkspaceRectOffsetX, curWorkspaceRectOffsetY,
                            widgetBox.w * monitorSizeScaleFactor,
                            widgetBox.h * monitorSizeScaleFactor};
@@ -504,35 +607,16 @@ void CHyprspaceWidget::draw() {
       }
     }
 
-    if (ws != nullptr) {
-      // draw tiled windows
-      for (auto &w : Desktop::windowState()->windows()) {
-        if (!w)
-          continue;
-        if (w->m_workspace == ws && !w->m_isFloating)
-          drawWindow(w);
-      }
-      // draw floating windows
-      for (auto &w : Desktop::windowState()->windows()) {
-        if (!w)
-          continue;
-        if (w->m_workspace == ws && w->m_isFloating &&
-            ws->getLastFocusedWindow() != w)
-          drawWindow(w);
-      }
-      // draw last focused floating window on top
-      if (ws->getLastFocusedWindow())
-        if (ws->getLastFocusedWindow()->m_isFloating)
-          drawWindow(ws->getLastFocusedWindow());
-    }
+    if (ws != nullptr)
+      drawWorkspaceWindows(ws, curWorkspaceBox, monitorSizeScaleFactor);
 
     if (owner->m_activeWorkspace != ws || !config.hideRealLayers->value()) {
       // this layer is hidden for real workspace when panel is displayed
       if (!config.hideTopLayers->value())
-        drawLayerSet(2);
+        drawLayers(2, curWorkspaceBox, monitorSizeScaleFactor, curWorkspaceBox);
 
       if (!config.hideOverlayLayers->value())
-        drawLayerSet(3);
+        drawLayers(3, curWorkspaceBox, monitorSizeScaleFactor, curWorkspaceBox);
     }
 
     // Resets workspaceBox to scaled absolute coordinates for input detection.

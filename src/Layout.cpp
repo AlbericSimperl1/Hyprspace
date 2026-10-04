@@ -25,6 +25,19 @@ static void applyGapsRule(const WORKSPACEID &id,
 // FIXME: preserve original workspace rules
 void CHyprspaceWidget::updateLayout() {
 
+  // stage mode: windows are scaled when rendering, nothing is re-tiled
+  if (config.scaleWorkspace->value()) {
+    if (reservedApplied) {
+      if (const auto pMon = getOwner()) {
+        pMon->m_reservedArea = Desktop::CReservedArea();
+        g_pHyprRenderer->arrangeLayersForMonitor(ownerID);
+        g_layoutManager->recalculateMonitor(pMon);
+      }
+      reservedApplied = false;
+    }
+    return;
+  }
+
   if (!config.affectStrut->value())
     return;
 
@@ -52,6 +65,7 @@ void CHyprspaceWidget::updateLayout() {
   auto *const PGAPSOUT = static_cast<Config::CCssGapData *>(PGAPSOUTBASE);
 
   // CReservedArea(top, right, bottom, left)
+  reservedApplied = active;
   if (active) {
     if (isVertical()) {
       if (config.onRight->value())

@@ -42,6 +42,15 @@ class CHyprspaceWidget {
 
   PHLANIMVAR<float> workspaceScrollOffset;
 
+  // GNOME-style stage (real workspace rendered scaled), set in draw(), used for
+  // input mapping
+  CBox stageBoxGlobal = {0, 0, 0, 0};
+  double stageRatio = 1.0;
+  bool stageShown = false;
+
+  // whether updateLayout() currently holds a reserved area on the owner monitor
+  bool reservedApplied = false;
+
 public:
   // for slide-in animation and swiping
   PHLANIMVAR<float> curYOffset;

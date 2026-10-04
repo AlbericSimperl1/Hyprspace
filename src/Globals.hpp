@@ -85,6 +85,8 @@ struct SConfig {
   SP<Config::Values::CIntValue> hideRealLayers;
   SP<Config::Values::CIntValue> affectStrut;
   SP<Config::Values::CIntValue> fitWindows;
+  SP<Config::Values::CIntValue> scaleWorkspace;
+  SP<Config::Values::CIntValue> stageMargin;
 
   SP<Config::Values::CIntValue> overrideGaps;
   SP<Config::Values::CIntValue> gapsIn;
@@ -106,6 +108,7 @@ struct SConfig {
   SP<Config::Values::CFloatValue> overrideAnimSpeed;
   SP<Config::Values::CFloatValue> dragAlpha;
   SP<Config::Values::CStringValue> exitKey;
+  SP<Config::Values::CColorValue> stageDim;
 };
 
 inline SConfig config = {
@@ -168,6 +171,12 @@ inline SConfig config = {
     .fitWindows = makeShared<Config::Values::CIntValue>(
         "plugin:overview:fitWindows", "description",
         1), // 1: aspect-fit window previews inside the tile instead of cropping
+    .scaleWorkspace = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:scaleWorkspace", "description",
+        1), // 1: GNOME-style, scale the real workspace into the free area
+            // instead of re-tiling it
+    .stageMargin = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:stageMargin", "description", 40),
 
     .overrideGaps = makeShared<Config::Values::CIntValue>(
         "plugin:overview:overrideGaps", "description", 1),
@@ -205,7 +214,10 @@ inline SConfig config = {
     .dragAlpha = makeShared<Config::Values::CFloatValue>(
         "plugin:overview:dragAlpha", "description", 0.2),
     .exitKey = makeShared<Config::Values::CStringValue>(
-        "plugin:overview:exitKey", "description", "Escape")};
+        "plugin:overview:exitKey", "description", "Escape"),
+    .stageDim = makeShared<Config::Values::CColorValue>(
+        "plugin:overview:stageDim", "description",
+        CHyprColor(0, 0, 0, 0.4).getAsHex())};
 
 namespace HyprConfig {
 inline std::optional<Config::INTEGER> getIntegerSafe(const std::string &name) {

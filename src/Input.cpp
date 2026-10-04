@@ -50,8 +50,15 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
       g_layoutManager->endDragTarget();
 
     if (pressed) {
+      // in stage mode the workspace is drawn scaled: map the cursor back to
+      // real window coordinates
+      Vector2D pickCoords = coords;
+      if (stageShown && stageRatio > 0 && stageBoxGlobal.containsPoint(coords))
+        pickCoords = getOwner()->m_position +
+                     (coords - stageBoxGlobal.pos()) / stageRatio;
+
       const auto PWINDOW = Desktop::viewState()->hitTest().windowAt(
-          coords, Desktop::View::WINDOW_ONLY, nullptr);
+          pickCoords, Desktop::View::WINDOW_ONLY, nullptr);
       if (PWINDOW) {
         const auto LT = PWINDOW->layoutTarget();
         if (LT)

@@ -469,6 +469,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
   HyprlandAPI::addConfigValueV2(pHandle, config.hideRealLayers);
   HyprlandAPI::addConfigValueV2(pHandle, config.affectStrut);
   HyprlandAPI::addConfigValueV2(pHandle, config.fitWindows);
+  HyprlandAPI::addConfigValueV2(pHandle, config.scaleWorkspace);
+  HyprlandAPI::addConfigValueV2(pHandle, config.stageMargin);
 
   HyprlandAPI::addConfigValueV2(pHandle, config.overrideGaps);
   HyprlandAPI::addConfigValueV2(pHandle, config.gapsIn);
@@ -490,6 +492,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
   HyprlandAPI::addConfigValueV2(pHandle, config.overrideAnimSpeed);
   HyprlandAPI::addConfigValueV2(pHandle, config.dragAlpha);
   HyprlandAPI::addConfigValueV2(pHandle, config.exitKey);
+  HyprlandAPI::addConfigValueV2(pHandle, config.stageDim);
 
   g_pConfigReloadHook =
       Event::bus()->m_events.config.reloaded.listen([]() { reloadConfig(); });
