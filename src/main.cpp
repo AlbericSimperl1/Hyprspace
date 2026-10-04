@@ -471,6 +471,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
   HyprlandAPI::addConfigValueV2(pHandle, config.fitWindows);
   HyprlandAPI::addConfigValueV2(pHandle, config.scaleWorkspace);
   HyprlandAPI::addConfigValueV2(pHandle, config.stageMargin);
+  HyprlandAPI::addConfigValueV2(pHandle, config.stageGap);
+  HyprlandAPI::addConfigValueV2(pHandle, config.stageBlur);
 
   HyprlandAPI::addConfigValueV2(pHandle, config.overrideGaps);
   HyprlandAPI::addConfigValueV2(pHandle, config.gapsIn);

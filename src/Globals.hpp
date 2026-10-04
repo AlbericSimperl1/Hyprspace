@@ -87,6 +87,8 @@ struct SConfig {
   SP<Config::Values::CIntValue> fitWindows;
   SP<Config::Values::CIntValue> scaleWorkspace;
   SP<Config::Values::CIntValue> stageMargin;
+  SP<Config::Values::CIntValue> stageGap;
+  SP<Config::Values::CIntValue> stageBlur;
 
   SP<Config::Values::CIntValue> overrideGaps;
   SP<Config::Values::CIntValue> gapsIn;
@@ -177,6 +179,12 @@ inline SConfig config = {
             // instead of re-tiling it
     .stageMargin = makeShared<Config::Values::CIntValue>(
         "plugin:overview:stageMargin", "description", 40),
+    .stageGap = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:stageGap", "description",
+        24), // space between windows on the stage
+    .stageBlur = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:stageBlur", "description",
+        1), // blur the wallpaper behind the overview
 
     .overrideGaps = makeShared<Config::Values::CIntValue>(
         "plugin:overview:overrideGaps", "description", 1),

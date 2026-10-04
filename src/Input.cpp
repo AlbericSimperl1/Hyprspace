@@ -1,3 +1,4 @@
+#include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/GlobalWindowController.hpp>
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/state/MonitorState.hpp>
@@ -102,6 +103,20 @@ bool CHyprspaceWidget::buttonEvent(bool pressed, Vector2D coords) {
           ->changeWorkspace(targetWorkspace->m_id);
     }
     if (config.exitOnSwitch->value() && active)
+      hide();
+  }
+  // GNOME-style: click a window on the stage to focus it and leave the
+  // overview, click empty stage to leave
+  else if (stageShown && !pressed && couldExit && targetWorkspace == nullptr &&
+           stageRatio > 0 && stageBoxGlobal.containsPoint(coords)) {
+    const Vector2D realCoords =
+        getOwner()->m_position + (coords - stageBoxGlobal.pos()) / stageRatio;
+    const auto PWINDOW = Desktop::viewState()->hitTest().windowAt(
+        realCoords, Desktop::View::WINDOW_ONLY, nullptr);
+    if (PWINDOW)
+      Desktop::focusState()->fullWindowFocus(PWINDOW,
+                                             Desktop::FOCUS_REASON_CLICK);
+    if (active)
       hide();
   }
   // click elsewhere to exit overview

@@ -28,6 +28,15 @@ void renderRectWithBlur(CBox box, CHyprColor color) {
   g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(rectdata));
 }
 
+void renderRectWithBlurA(CBox box, CHyprColor color, float blurAlpha) {
+  CRectPassElement::SRectData rectdata;
+  rectdata.color = color;
+  rectdata.box = box;
+  rectdata.blur = true;
+  rectdata.blurA = blurAlpha;
+  g_pHyprRenderer->m_renderPass.add(makeUnique<CRectPassElement>(rectdata));
+}
+
 void renderBorder(CBox box, const Config::CGradientValueData &gradient,
                   int size) {
   CBorderPassElement::SBorderData data;
@@ -270,7 +279,7 @@ void CHyprspaceWidget::draw() {
   // render all windows of a workspace into box, scaled by ratio (aspect-fit is
   // applied in renderWindowStub)
   const auto drawWorkspaceWindows = [&](const PHLWORKSPACE &ws, const CBox &box,
-                                        double ratio) {
+                                        double ratio, double gapPx) {
     if (!ws)
       return;
 
@@ -284,6 +293,18 @@ void CHyprspaceWidget::draw() {
       double wH = wSize.y * ratio * scale;
       if (!(wW > 0 && wH > 0))
         return;
+
+      // breathing room between windows: shrink around the window centre, aspect
+      // ratio preserved
+      if (gapPx > 0) {
+        const double k =
+            std::clamp(1.0 - 2.0 * gapPx / std::min(wW, wH), 0.5, 1.0);
+        wX += wW * (1.0 - k) / 2.;
+        wY += wH * (1.0 - k) / 2.;
+        wW *= k;
+        wH *= k;
+      }
+
       CBox curWindowBox = {wX, wY, wW, wH};
       renderWindowStub(w, owner, owner->m_activeWorkspace, curWindowBox, box,
                        time);
@@ -360,10 +381,15 @@ void CHyprspaceWidget::draw() {
 
     CHyprColor dim = CHyprColor(config.stageDim->value());
     dim.a *= p;
-    if (dim.a > 0)
+    if (!config.disableBlur->value() && config.stageBlur->value())
+      renderRectWithBlurA(
+          monitorClip, dim,
+          (float)p); // blurred wallpaper, fades in with the animation
+    else if (dim.a > 0)
       renderRect(monitorClip, dim);
 
-    drawWorkspaceWindows(owner->m_activeWorkspace, stage, ratio);
+    drawWorkspaceWindows(owner->m_activeWorkspace, stage, ratio,
+                         config.stageGap->value() * scale * p);
 
     // real top/overlay layers are covered by the stage, so redraw them when
     // they are not hidden
@@ -608,7 +634,7 @@ void CHyprspaceWidget::draw() {
     }
 
     if (ws != nullptr)
-      drawWorkspaceWindows(ws, curWorkspaceBox, monitorSizeScaleFactor);
+      drawWorkspaceWindows(ws, curWorkspaceBox, monitorSizeScaleFactor, 0.0);
 
     if (owner->m_activeWorkspace != ws || !config.hideRealLayers->value()) {
       // this layer is hidden for real workspace when panel is displayed
