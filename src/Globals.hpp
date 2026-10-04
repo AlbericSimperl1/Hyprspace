@@ -89,6 +89,7 @@ struct SConfig {
   SP<Config::Values::CIntValue> stageMargin;
   SP<Config::Values::CIntValue> stageGap;
   SP<Config::Values::CIntValue> stageBlur;
+  SP<Config::Values::CIntValue> stageRounding;
 
   SP<Config::Values::CIntValue> overrideGaps;
   SP<Config::Values::CIntValue> gapsIn;
@@ -185,6 +186,9 @@ inline SConfig config = {
     .stageBlur = makeShared<Config::Values::CIntValue>(
         "plugin:overview:stageBlur", "description",
         1), // blur the wallpaper behind the overview
+    .stageRounding = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:stageRounding", "description",
+        0), // corner radius (px) of the stage card, 0 = square
 
     .overrideGaps = makeShared<Config::Values::CIntValue>(
         "plugin:overview:overrideGaps", "description", 1),
