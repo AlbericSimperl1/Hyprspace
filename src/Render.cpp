@@ -132,7 +132,7 @@ void renderWindowStub(PHLWINDOW pWindow, PHLMONITOR pMonitor,
                            : pWindow->rounding() * scaleMod * pMonitor->m_scale;
   renderdata.roundingPower =
       renderdata.dontRound ? 2.0F : pWindow->roundingPower();
-  renderdata.blur = false;
+  renderdata.blur = true;
   renderdata.pWindow = pWindow;
   renderdata.clipBox = clipBox;
   renderdata.useNearestNeighbor = false;
@@ -200,7 +200,7 @@ void renderLayerStub(PHLLS pLayer, PHLMONITOR pMonitor, CBox rectOverride,
   CSurfacePassElement::SRenderData renderdata = {pMonitor, time, oRealPosition};
   renderdata.fadeAlpha = 1.F;
   renderdata.alpha = 0.999F;
-  renderdata.blur = false;
+  renderdata.blur = true;
   renderdata.surface = pLayer->wlSurface()->resource();
   renderdata.decorate = false;
   renderdata.w = oSize.x;
@@ -211,6 +211,9 @@ void renderLayerStub(PHLLS pLayer, PHLMONITOR pMonitor, CBox rectOverride,
   if (rounding > 0) {
     renderdata.rounding = rounding;
     renderdata.roundingPower = 2.0F;
+    // SRenderData::dontRound defaults to true, which makes the renderer ignore
+    // `rounding` completely
+    renderdata.dontRound = false;
   }
 
   pLayer->wlSurface()->resource()->breadthfirst(
