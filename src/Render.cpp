@@ -240,6 +240,13 @@ void renderLayerStub(PHLLS pLayer, PHLMONITOR pMonitor, CBox rectOverride,
 // damagebox and layers are not, what the fuck? xd
 void CHyprspaceWidget::draw() {
 
+  // while dragging outside the workspace the preview of the dragged window is
+  // hidden, a translucent ghost is drawn by the render hook instead
+  // (must be evaluated before the stage state below is reset)
+  const bool dragGhost = isDragGhost();
+  const auto dragTarget = g_layoutManager->dragController()->target();
+  const auto dragWindow = dragTarget ? dragTarget->window() : nullptr;
+
   workspaceBoxes.clear();
   stageShown = false;
   stripValid = false;
@@ -267,6 +274,10 @@ void CHyprspaceWidget::draw() {
   const bool stageMode = config.scaleWorkspace->value() != 0;
   const double scale = owner->m_scale;
   const double marginPx = config.workspaceMargin->value() * scale;
+  const double spacingPx = (config.workspaceSpacing->value() >= 0
+                                ? config.workspaceSpacing->value()
+                                : config.workspaceMargin->value()) *
+                           scale;
   const Vector2D monSize = owner->m_transformedSize;
 
   // Background box (monitor-local pixels, slide animation included)
@@ -312,6 +323,8 @@ void CHyprspaceWidget::draw() {
       return;
 
     const auto drawWindow = [&](const auto &w) {
+      if (dragGhost && dragWindow && w.get() == dragWindow.get())
+        return;
       const auto wPos =
           w->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
       const auto wSize = w->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT);
@@ -461,7 +474,9 @@ void CHyprspaceWidget::draw() {
 
   // a dedicated panel background is only drawn when the panel is not part of
   // the stage
-  if (!inStage) {
+  // in stage mode the panel is fully transparent: the blurred surround shows
+  // through, so there is no visible seam between stage and panel
+  if (!inStage && !stageMode) {
     if (!config.disableBlur->value()) {
       renderRectWithBlur(widgetBox, config.panelBaseColor->value());
     } else {
@@ -470,7 +485,7 @@ void CHyprspaceWidget::draw() {
   }
 
   // Panel Border
-  if (!inStage && config.panelBorderWidth->value() > 0) {
+  if (!inStage && !stageMode && config.panelBorderWidth->value() > 0) {
     const double borderW =
         static_cast<double>(config.panelBorderWidth->value());
     CBox borderBox;
@@ -571,7 +586,7 @@ void CHyprspaceWidget::draw() {
 
   const double groupLength =
       (vertical ? workspaceBoxH : workspaceBoxW) * wsCount +
-      marginPx * (wsCount - 1);
+      spacingPx * (wsCount - 1);
   // length of the strip along its axis and where it starts
   const double panelLength = inStage ? (vertical ? host.h : host.w)
                                      : (vertical ? widgetBox.h : widgetBox.w);
@@ -625,9 +640,9 @@ void CHyprspaceWidget::draw() {
   // move on to the next tile position along the panel
   const auto advance = [&]() {
     if (vertical)
-      curWorkspaceRectOffsetY += workspaceBoxH + marginPx;
+      curWorkspaceRectOffsetY += workspaceBoxH + spacingPx;
     else
-      curWorkspaceRectOffsetX += workspaceBoxW + marginPx;
+      curWorkspaceRectOffsetX += workspaceBoxW + spacingPx;
   };
 
   for (auto wsID : workspaces) {

@@ -1,3 +1,4 @@
+
 #include "Globals.hpp"
 #include "Lua.hpp"
 #include "Overview.hpp"
@@ -113,16 +114,20 @@ void onRender(eRenderStage renderStage) {
           const auto dragTarget = g_layoutManager->dragController()->target();
           const auto curWindow = dragTarget ? dragTarget->window() : nullptr;
           if (curWindow) {
-            curWindow->alpha(Desktop::View::WINDOW_ALPHA_ACTIVE)
-                ->setValueAndWarp(config.dragAlpha->value());
-            curWindow->m_ruleApplicator->noBlur().unset(
-                Desktop::Types::PRIORITY_SET_PROP);
-            const auto time = Time::steadyNow();
-            (*(tRenderWindow)pRenderWindow)(
-                g_pHyprRenderer.get(), curWindow, widget->getOwner(), time,
-                true, Render::RENDER_PASS_MAIN, false, false);
-            curWindow->m_ruleApplicator->noBlur().unset(
-                Desktop::Types::PRIORITY_SET_PROP);
+            // inside the workspace the preview is the window, outside of it
+            // the dragged window is drawn as a free translucent ghost
+            if (widget->isDragGhost()) {
+              curWindow->alpha(Desktop::View::WINDOW_ALPHA_ACTIVE)
+                  ->setValueAndWarp(config.dragAlpha->value());
+              curWindow->m_ruleApplicator->noBlur().unset(
+                  Desktop::Types::PRIORITY_SET_PROP);
+              const auto time = Time::steadyNow();
+              (*(tRenderWindow)pRenderWindow)(
+                  g_pHyprRenderer.get(), curWindow, widget->getOwner(), time,
+                  true, Render::RENDER_PASS_MAIN, false, false);
+              curWindow->m_ruleApplicator->noBlur().unset(
+                  Desktop::Types::PRIORITY_SET_PROP);
+            }
             curWindow->alpha(Desktop::View::WINDOW_ALPHA_ACTIVE)
                 ->setValueAndWarp(g_oAlpha);
           }
@@ -525,6 +530,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE inHandle) {
   HyprlandAPI::addConfigValueV2(pHandle, config.panelHeight);
   HyprlandAPI::addConfigValueV2(pHandle, config.panelBorderWidth);
   HyprlandAPI::addConfigValueV2(pHandle, config.workspaceMargin);
+  HyprlandAPI::addConfigValueV2(pHandle, config.workspaceSpacing);
   HyprlandAPI::addConfigValueV2(pHandle, config.workspaceBorderSize);
   HyprlandAPI::addConfigValueV2(pHandle, config.reservedArea);
   HyprlandAPI::addConfigValueV2(pHandle, config.adaptiveHeight);

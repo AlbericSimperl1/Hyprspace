@@ -241,6 +241,28 @@ void CHyprspaceWidget::updateConfig() {
 
 bool CHyprspaceWidget::isActive() { return active; }
 
+bool CHyprspaceWidget::isDragGhost() {
+  if (!active)
+    return false;
+
+  const auto dragTarget = g_layoutManager->dragController()->target();
+  if (!dragTarget || !dragTarget->window())
+    return false;
+
+  const Vector2D cursor = g_pInputManager->getMouseCoordsInternal();
+
+  // over the workspace thumbnails: the window is on its way to another
+  // workspace
+  if (panelHitBox().containsPoint(cursor))
+    return true;
+
+  // outside the stage card
+  if (stageShown && !stageBoxGlobal.containsPoint(cursor))
+    return true;
+
+  return false;
+}
+
 void CHyprspaceWidget::setPanelVisible(bool visible) {
   panelVisible = visible;
   *panelHide = visible ? 0.F : 1.F;

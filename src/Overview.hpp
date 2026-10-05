@@ -70,6 +70,11 @@ public:
   PHLMONITOR getOwner();
   bool isActive();
 
+  // true while a window is being dragged and the cursor is outside the
+  // workspace (stage): the window is then shown as a free translucent ghost
+  // instead of its preview inside the workspace
+  bool isDragGhost();
+
   void show();
   void hide();
 

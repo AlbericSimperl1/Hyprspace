@@ -71,6 +71,7 @@ struct SConfig {
   SP<Config::Values::CIntValue> panelHeight;
   SP<Config::Values::CIntValue> panelBorderWidth;
   SP<Config::Values::CIntValue> workspaceMargin;
+  SP<Config::Values::CIntValue> workspaceSpacing;
   SP<Config::Values::CIntValue> workspaceBorderSize;
   SP<Config::Values::CIntValue> reservedArea;
   SP<Config::Values::CIntValue> adaptiveHeight;
@@ -144,6 +145,9 @@ inline SConfig config = {
         "plugin:overview:panelBorderWidth", "description", 2),
     .workspaceMargin = makeShared<Config::Values::CIntValue>(
         "plugin:overview:workspaceMargin", "description", 12),
+    .workspaceSpacing = makeShared<Config::Values::CIntValue>(
+        "plugin:overview:workspaceSpacing", "description",
+        -1), // gap between thumbnails, -1 = use workspaceMargin
     .workspaceBorderSize = makeShared<Config::Values::CIntValue>(
         "plugin:overview:workspaceBorderSize", "description", 1),
     .reservedArea = makeShared<Config::Values::CIntValue>(
@@ -233,7 +237,7 @@ inline SConfig config = {
     .overrideAnimSpeed = makeShared<Config::Values::CFloatValue>(
         "plugin:overview:overrideAnimSpeed", "description", 0.0),
     .dragAlpha = makeShared<Config::Values::CFloatValue>(
-        "plugin:overview:dragAlpha", "description", 0.2),
+        "plugin:overview:dragAlpha", "description", 0.6),
     .exitKey = makeShared<Config::Values::CStringValue>(
         "plugin:overview:exitKey", "description", "Escape"),
     .stageDim = makeShared<Config::Values::CColorValue>(
